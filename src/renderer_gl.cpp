@@ -3633,6 +3633,8 @@ namespace bgfx { namespace gl
 
 		uintptr_t getInternal(TextureHandle _handle) override
 		{
+			if (m_textures[_handle.idx].m_rbo)
+			    return uintptr_t(m_textures[_handle.idx].m_rbo);
 			return uintptr_t(m_textures[_handle.idx].m_id);
 		}
 
