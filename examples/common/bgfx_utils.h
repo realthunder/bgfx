@@ -36,19 +36,21 @@ void unload(void* _ptr);
 /// Load shader from file.
 ///
 /// @param[in] _name Shader name.
+/// @param[in] _path Optional path prefix for shader binaries.
 ///
 /// @returns Shader handle.
 ///
-bgfx::ShaderHandle loadShader(const bx::StringView& _name);
+bgfx::ShaderHandle loadShader(const bx::StringView& _name, const char* _path = nullptr);
 
 /// Load shader program from vertex and fragment shader files.
 ///
 /// @param[in] _vsName Vertex shader name.
 /// @param[in] _fsName Fragment shader name.
+/// @param[in] _path Optional path prefix for shader binaries.
 ///
 /// @returns Program handle.
 ///
-bgfx::ProgramHandle loadProgram(const bx::StringView& _vsName, const bx::StringView& _fsName);
+bgfx::ProgramHandle loadProgram(const bx::StringView& _vsName, const bx::StringView& _fsName, const char* _path = nullptr);
 
 /// Load texture from file.
 ///

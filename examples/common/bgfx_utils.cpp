@@ -96,9 +96,10 @@ static void* loadMem(bx::FileReaderI* _reader, bx::AllocatorI* _allocator, const
 	return NULL;
 }
 
-static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const bx::StringView& _name)
+static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const bx::StringView& _name, const char* _path)
 {
-	bx::FilePath filePath("shaders/");
+	bx::FilePath filePath(_path ? _path : "");
+	filePath.join("shaders");
 
 	switch (bgfx::getRendererType() )
 	{
@@ -131,26 +132,26 @@ static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const bx::StringV
 	return handle;
 }
 
-bgfx::ShaderHandle loadShader(const bx::StringView& _name)
+bgfx::ShaderHandle loadShader(const bx::StringView& _name, const char* _path)
 {
-	return loadShader(entry::getFileReader(), _name);
+	return loadShader(entry::getFileReader(), _name, _path);
 }
 
-bgfx::ProgramHandle loadProgram(bx::FileReaderI* _reader, const bx::StringView& _vsName, const bx::StringView& _fsName)
+bgfx::ProgramHandle loadProgram(bx::FileReaderI* _reader, const bx::StringView& _vsName, const bx::StringView& _fsName, const char* _path)
 {
-	bgfx::ShaderHandle vsh = loadShader(_reader, _vsName);
+	bgfx::ShaderHandle vsh = loadShader(_reader, _vsName, _path);
 	bgfx::ShaderHandle fsh = BGFX_INVALID_HANDLE;
 	if (!_fsName.isEmpty() )
 	{
-		fsh = loadShader(_reader, _fsName);
+		fsh = loadShader(_reader, _fsName, _path);
 	}
 
 	return bgfx::createProgram(vsh, fsh, true /* destroy shaders when program is destroyed */);
 }
 
-bgfx::ProgramHandle loadProgram(const bx::StringView& _vsName, const bx::StringView& _fsName)
+bgfx::ProgramHandle loadProgram(const bx::StringView& _vsName, const bx::StringView& _fsName, const char* _path)
 {
-	return loadProgram(entry::getFileReader(), _vsName, _fsName);
+	return loadProgram(entry::getFileReader(), _vsName, _fsName, _path);
 }
 
 static void imageReleaseCb(void* _ptr, void* _userData)
