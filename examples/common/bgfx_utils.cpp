@@ -96,7 +96,7 @@ static void* loadMem(bx::FileReaderI* _reader, bx::AllocatorI* _allocator, const
 	return NULL;
 }
 
-static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const char* _name)
+static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const char* _name, const char *_path)
 {
 	char filePath[512];
 
@@ -122,7 +122,11 @@ static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const char* _name
 		break;
 	}
 
-	bx::strCopy(filePath, BX_COUNTOF(filePath), shaderPath);
+	if (_path) {
+		bx::strCopy(filePath, BX_COUNTOF(filePath), _path);
+		bx::strCat(filePath, BX_COUNTOF(filePath), shaderPath);
+	} else
+		bx::strCopy(filePath, BX_COUNTOF(filePath), shaderPath);
 	bx::strCat(filePath, BX_COUNTOF(filePath), _name);
 	bx::strCat(filePath, BX_COUNTOF(filePath), ".bin");
 
@@ -132,26 +136,26 @@ static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const char* _name
 	return handle;
 }
 
-bgfx::ShaderHandle loadShader(const char* _name)
+bgfx::ShaderHandle loadShader(const char* _name, const char *_path)
 {
-	return loadShader(entry::getFileReader(), _name);
+	return loadShader(entry::getFileReader(), _name, _path);
 }
 
-bgfx::ProgramHandle loadProgram(bx::FileReaderI* _reader, const char* _vsName, const char* _fsName)
+bgfx::ProgramHandle loadProgram(bx::FileReaderI* _reader, const char* _vsName, const char* _fsName, const char *_path)
 {
-	bgfx::ShaderHandle vsh = loadShader(_reader, _vsName);
+	bgfx::ShaderHandle vsh = loadShader(_reader, _vsName, _path);
 	bgfx::ShaderHandle fsh = BGFX_INVALID_HANDLE;
 	if (NULL != _fsName)
 	{
-		fsh = loadShader(_reader, _fsName);
+		fsh = loadShader(_reader, _fsName, _path);
 	}
 
 	return bgfx::createProgram(vsh, fsh, true /* destroy shaders when program is destroyed */);
 }
 
-bgfx::ProgramHandle loadProgram(const char* _vsName, const char* _fsName)
+bgfx::ProgramHandle loadProgram(const char* _vsName, const char* _fsName, const char *_path)
 {
-	return loadProgram(entry::getFileReader(), _vsName, _fsName);
+	return loadProgram(entry::getFileReader(), _vsName, _fsName, _path);
 }
 
 static void imageReleaseCb(void* _ptr, void* _userData)
