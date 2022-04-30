@@ -2005,6 +2005,15 @@ namespace bgfx { namespace gl
 		// to avoid developer unfriendly console error noise that would come from probing.
 		BX_UNUSED(_dim);
 		return isFramebufferFormatValidPerSpec(_format, _srgb, _writeOnly);
+#elif 1
+		(void)_format;
+		(void)_srgb;
+		(void)_writeOnly;
+		(void)_dim;
+		// For some reason my nvidia 3060 on ubuntu 20.04 crashes (the next
+		// time calling makeCurrent()) if testing frame buffer using the
+		// following way. The crash happens in libnvidia-glcore.so.470.103.01
+		return true;
 #else
 		// On other platforms probe the supported textures.
 		const TextureFormatInfo& tfi = s_textureFormat[_format];
@@ -8485,3 +8494,4 @@ namespace bgfx { namespace gl
 } /* namespace gl */ } // namespace bgfx
 
 #endif // (BGFX_CONFIG_RENDERER_OPENGLES || BGFX_CONFIG_RENDERER_OPENGL)
+// vim: set noexpandtab:
