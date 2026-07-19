@@ -3126,7 +3126,8 @@ namespace bgfx { namespace gl
 					GL_CHECK(glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &m_maxAnisotropyDefault) );
 				}
 
-				if (s_extension[Extension::ARB_texture_multisample].m_supported
+				if (m_gles3 // GLES 3.0 core (WebGL2 exposes no extension string)
+				||  s_extension[Extension::ARB_texture_multisample].m_supported
 				||  s_extension[Extension::ANGLE_framebuffer_multisample].m_supported
 				||  s_extension[Extension::EXT_multisampled_render_to_texture].m_supported)
 				{
@@ -7467,7 +7468,26 @@ namespace bgfx { namespace gl
 						GL_CHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo[1]) );
 
 						GL_CHECK(glReadBuffer(GL_COLOR_ATTACHMENT0 + colorIdx) );
-						GL_CHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0 + colorIdx) );
+
+						if (BX_ENABLED(BGFX_CONFIG_RENDERER_OPENGL) )
+						{
+							GL_CHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0 + colorIdx) );
+						}
+						else
+						{
+							// GLES/WebGL2 has no glDrawBuffer; select the
+							// one draw buffer with a one-hot glDrawBuffers
+							// list (element ii must be NONE or ATTACHMENTii).
+							GLenum drawBuffers[BGFX_CONFIG_MAX_FRAME_BUFFER_ATTACHMENTS];
+							for (uint32_t jj = 0; jj <= colorIdx; ++jj)
+							{
+								drawBuffers[jj] = jj == colorIdx
+									? GL_COLOR_ATTACHMENT0 + colorIdx
+									: GL_NONE
+									;
+							}
+							GL_CHECK(glDrawBuffers(colorIdx + 1, drawBuffers) );
+						}
 
 						colorIdx++;
 
