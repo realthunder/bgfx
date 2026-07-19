@@ -6974,6 +6974,12 @@ namespace bgfx { namespace gl
 						  "#define texture2DGrad   textureGrad\n"
 						  "#define texture3DGrad   textureGrad\n"
 						  "#define textureCubeGrad textureGrad\n"
+						// shaderc's essl output keeps glsl-optimizer's
+						// GLES2 *LodEXT names; they are core in ES 3.
+						  "#define textureLodEXT        textureLod\n"
+						  "#define texture2DLodEXT      textureLod\n"
+						  "#define texture2DProjLodEXT  textureProjLod\n"
+						  "#define textureCubeLodEXT    textureLod\n"
 						, &err
 						);
 
@@ -7012,7 +7018,14 @@ namespace bgfx { namespace gl
 
 						uint32_t fragData = 0;
 
-						bool patchedFragData = s_renderGL->m_gles3 && !bx::findIdentifierMatch(code, "bgfx_FragData").isEmpty();
+						// shaderc's essl output declares either the
+						// bgfx_FragData[N] array or scalar
+						// bgfx_FragData0/1/... outputs — recognize both,
+						// or an extra bgfx_FragColor out is injected and
+						// WebGL2 rejects the two unqualified outputs.
+						bool patchedFragData = s_renderGL->m_gles3
+							&& (!bx::findIdentifierMatch(code, "bgfx_FragData").isEmpty()
+								|| !bx::findIdentifierMatch(code, "bgfx_FragData0").isEmpty());
 
 						if (!patchedFragData && !bx::findIdentifierMatch(code, "gl_FragData").isEmpty() )
 						{
