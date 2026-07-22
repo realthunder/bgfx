@@ -2006,13 +2006,19 @@ namespace bgfx
 						}
 						if (hasFragColor)
 						{
+							// highp, not the spec's mediump: the output may
+							// target a float attachment (depth pyramid,
+							// moment map), and GPUs honoring precision
+							// qualifiers (Mali & co.) quantize the written
+							// value to fp16 regardless of target format.
+							// highp costs nothing on fixed-point targets.
 							preprocessor.writef("#define gl_FragColor bgfx_FragColor\n");
-							preprocessor.writef("out mediump vec4 bgfx_FragColor;\n");
+							preprocessor.writef("out highp vec4 bgfx_FragColor;\n");
 						}
 						else if (numFragData)
 						{
 							preprocessor.writef("#define gl_FragData bgfx_FragData\n");
-							preprocessor.writef("out mediump vec4 bgfx_FragData[gl_MaxDrawBuffers];\n");
+							preprocessor.writef("out highp vec4 bgfx_FragData[gl_MaxDrawBuffers];\n");
 						}
 					}
 

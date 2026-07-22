@@ -912,9 +912,17 @@ builtin_variable_generator::generate_fs_special_vars()
     * They were removed from GLSL ES 3.00.
     */
    if (compatibility || !state->is_version(420, 300)) {
-      add_output(FRAG_RESULT_COLOR, vec4_t, "gl_FragColor", glsl_precision_medium);
+      /* The ES specs type these mediump, which is fine for the 8-bit
+       * targets they were designed for — but through bgfx every fragment
+       * output lands here, including float render targets (depth
+       * pyramids, moment maps), and GPUs that honor precision qualifiers
+       * (Mali & co.) then quantize the written value to fp16 regardless
+       * of the target format. highp costs nothing on fixed-point targets
+       * and keeps float targets exact.
+       */
+      add_output(FRAG_RESULT_COLOR, vec4_t, "gl_FragColor", glsl_precision_high);
       add_output(FRAG_RESULT_DATA0,
-                 array(vec4_t, state->Const.MaxDrawBuffers), "gl_FragData", glsl_precision_medium);
+                 array(vec4_t, state->Const.MaxDrawBuffers), "gl_FragData", glsl_precision_high);
    }
 
    /* gl_FragDepth has always been in desktop GLSL, but did not appear in GLSL
