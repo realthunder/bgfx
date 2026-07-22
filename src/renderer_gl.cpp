@@ -3643,7 +3643,13 @@ namespace bgfx { namespace gl
 
 		uintptr_t getInternal(TextureHandle _handle) override
 		{
-			if (m_textures[_handle.idx].m_rbo)
+			// Write-only render targets are backed by a renderbuffer with
+			// no texture object; expose that. When BOTH exist (an MSAA
+			// sampleable target: multisampled renderbuffer + single-sample
+			// resolve texture) expose the resolve texture — callers blit
+			// or sample resolved content, not the raw multisampled buffer.
+			if (0 == m_textures[_handle.idx].m_id
+			&&  m_textures[_handle.idx].m_rbo)
 			    return uintptr_t(m_textures[_handle.idx].m_rbo);
 			return uintptr_t(m_textures[_handle.idx].m_id);
 		}
