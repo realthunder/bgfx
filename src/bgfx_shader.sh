@@ -643,6 +643,28 @@ vec4  mod(vec4  _a, vec4  _b) { return _a - _b * floor(_a / _b); }
 #	define ISAMPLER3D(_name, _reg) uniform isampler3D _name
 #	define USAMPLER3D(_name, _reg) uniform usampler3D _name
 
+#	if BGFX_SHADER_LANGUAGE_ESSL
+// ESSL default sampler precision is lowp: on GPUs that honor precision
+// qualifiers (Mali & co.) a fetch from a float texture (e.g. view-space
+// depth) is quantized to fp16 or worse regardless of the texture's own
+// format, which bands every depth-driven effect — and glsl-optimizer's
+// precision inference then drags every value derived from the fetch
+// down to lowp too. Desktop GL ignores precision qualifiers, so this
+// only ever manifests on mobile. Declare samplers highp explicitly (a
+// global `precision highp sampler2D;` default is NOT honored by
+// glsl-optimizer's inference).
+#		undef  SAMPLER2D
+#		define SAMPLER2D(_name, _reg)       uniform highp sampler2D _name
+#		undef  SAMPLER3D
+#		define SAMPLER3D(_name, _reg)       uniform highp sampler3D _name
+#		undef  SAMPLERCUBE
+#		define SAMPLERCUBE(_name, _reg)     uniform highp samplerCube _name
+#		undef  SAMPLER2DSHADOW
+#		define SAMPLER2DSHADOW(_name, _reg) uniform highp sampler2DShadow _name
+#		undef  SAMPLER2DARRAY
+#		define SAMPLER2DARRAY(_name, _reg)  uniform highp sampler2DArray _name
+#	endif // BGFX_SHADER_LANGUAGE_ESSL
+
 #	if BGFX_SHADER_LANGUAGE_GLSL >= 130
 #		define texture2D(_sampler, _coord)      texture(_sampler, _coord)
 #		define texture2DArray(_sampler, _coord) texture(_sampler, _coord)
