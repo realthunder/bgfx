@@ -2017,8 +2017,23 @@ namespace bgfx
 						}
 						else if (numFragData)
 						{
+							// Size the output array by the highest
+							// gl_FragData index actually written:
+							// gl_MaxDrawBuffers declares 8 locations,
+							// which WebGL2 rejects when the context's
+							// MAX_DRAW_BUFFERS is smaller ("output
+							// array locations would exceed
+							// MAX_DRAW_BUFFERS").
+							uint32_t maxFragData = 0;
+							for (uint32_t ii = 0; ii < BX_COUNTOF(hasFragData); ++ii)
+							{
+								if (hasFragData[ii])
+								{
+									maxFragData = ii + 1;
+								}
+							}
 							preprocessor.writef("#define gl_FragData bgfx_FragData\n");
-							preprocessor.writef("out highp vec4 bgfx_FragData[gl_MaxDrawBuffers];\n");
+							preprocessor.writef("out highp vec4 bgfx_FragData[%d];\n", maxFragData);
 						}
 					}
 
