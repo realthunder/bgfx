@@ -1553,12 +1553,21 @@ namespace bgfx { namespace gl
 	{
 		TimerQueryGL()
 			: m_control(BX_COUNTOF(m_query) )
+			, m_num(BX_COUNTOF(m_query) )
 		{
 		}
 
 		void create()
 		{
-			for (uint32_t ii = 0; ii < BX_COUNTOF(m_query); ++ii)
+			// Four queries a view, but only for the views this context
+			// hands out: at a large ceiling the untouched slots are
+			// thousands of GL query objects the driver has to keep, for
+			// view ids that can never be submitted.
+			m_num = bx::min<uint32_t>(g_maxViews * 4, BX_COUNTOF(m_query) );
+			m_control.m_size = bx::max<uint32_t>(m_num, 2);
+			m_control.reset();
+
+			for (uint32_t ii = 0; ii < m_num; ++ii)
 			{
 				Query& query = m_query[ii];
 				query.m_ready = false;
@@ -1576,7 +1585,7 @@ namespace bgfx { namespace gl
 
 		void destroy()
 		{
-			for (uint32_t ii = 0; ii < BX_COUNTOF(m_query); ++ii)
+			for (uint32_t ii = 0; ii < m_num; ++ii)
 			{
 				Query& query = m_query[ii];
 				GL_CHECK(glDeleteQueries(1, &query.m_begin) );
@@ -1694,6 +1703,10 @@ namespace bgfx { namespace gl
 
 		Query m_query[BGFX_CONFIG_MAX_VIEWS*4];
 		bx::RingBufferControl m_control;
+		/// Slots of m_query create() actually generated GL queries for,
+		/// which is what destroy() must give back. The ring is held to
+		/// the same count, so no slot past it is ever handed out.
+		uint32_t m_num;
 	};
 
 	struct OcclusionQueryGL

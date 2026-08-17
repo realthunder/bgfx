@@ -604,6 +604,7 @@ namespace bgfx
 	extern CallbackI* g_callback;
 	extern bx::AllocatorI* g_allocator;
 	extern Caps g_caps;
+	extern uint32_t g_maxViews;
 
 	struct ProfilerScope
 	{
@@ -4360,7 +4361,7 @@ namespace bgfx
 
 			m_flipAfterRender = !!(_flags & BGFX_RESET_FLIP_AFTER_RENDER);
 
-			for (uint32_t ii = 0; ii < BGFX_CONFIG_MAX_VIEWS; ++ii)
+			for (uint32_t ii = 0; ii < g_maxViews; ++ii)
 			{
 				m_view[ii].setFrameBuffer(BGFX_INVALID_HANDLE);
 			}

@@ -390,6 +390,12 @@ namespace bgfx
 
 	Caps g_caps;
 
+	// How much of the compile-time view table this context uses, set from
+	// Init::Limits::maxViews. Every per-view walk and per-view pool reads
+	// this instead of BGFX_CONFIG_MAX_VIEWS, so the ceiling can be raised
+	// for capacity without every frame paying for the slots nobody uses.
+	uint32_t g_maxViews = BGFX_CONFIG_MAX_VIEWS;
+
 #if BGFX_CONFIG_MULTITHREADED
 	static BX_THREAD_LOCAL uint32_t s_threadIndex(0);
 #else
@@ -1696,8 +1702,13 @@ namespace bgfx
 	{
 		BGFX_PROFILER_SCOPE("bgfx/Sort", kColorSubmit);
 
+		// Only the views this context hands out are walked: the rect and
+		// scissor fixup below is the one per-frame cost that grows with
+		// the view count, and slots past g_maxViews can never carry a
+		// draw (checkView refuses their ids) nor appear in m_viewRemap,
+		// which setViewOrder only ever permutes within the same range.
 		ViewId viewRemap[BGFX_CONFIG_MAX_VIEWS];
-		for (uint32_t ii = 0; ii < BGFX_CONFIG_MAX_VIEWS; ++ii)
+		for (uint32_t ii = 0; ii < g_maxViews; ++ii)
 		{
 			viewRemap[m_viewRemap[ii] ] = ViewId(ii);
 
@@ -2378,7 +2389,7 @@ namespace bgfx
 			m_viewRemap[ii] = ViewId(ii);
 		}
 
-		for (uint32_t ii = 0; ii < BGFX_CONFIG_MAX_VIEWS; ++ii)
+		for (uint32_t ii = 0; ii < g_maxViews; ++ii)
 		{
 			resetView(ViewId(ii) );
 		}
@@ -2800,12 +2811,17 @@ namespace bgfx
 		m_submit->m_debug = m_debug;
 		m_submit->m_perfStats.numViews = 0;
 
-		bx::memCopy(m_submit->m_viewRemap, m_viewRemap, sizeof(m_viewRemap) );
+		// Only the views this context hands out are handed to the submit
+		// frame. These two copies are the per-frame cost that grows with
+		// the view table -- the whole View array, hundreds of bytes an
+		// entry, moved every frame -- and a slot past g_maxViews holds
+		// nothing any frame can reach.
+		bx::memCopy(m_submit->m_viewRemap, m_viewRemap, sizeof(m_viewRemap[0]) * g_maxViews);
 
 		m_uniformCache.frame(m_submit->m_uniformCacheFrame);
 
 		static_assert(bx::isTriviallyCopyable<View>(), "Must be memcopyiable...");
-		bx::memCopy(m_submit->m_view, m_view, sizeof(m_view) );
+		bx::memCopy(m_submit->m_view, m_view, sizeof(m_view[0]) * g_maxViews);
 
 		if (m_colorPaletteDirty > 0)
 		{
@@ -2831,7 +2847,7 @@ namespace bgfx
 		uint32_t nextFrameNum = m_render->m_frameNum + 1;
 		m_submit->start(nextFrameNum);
 
-		bx::memSet(m_seq, 0, sizeof(m_seq) );
+		bx::memSet(m_seq, 0, sizeof(m_seq[0]) * g_maxViews);
 
 		m_submit->m_textVideoMem->resize(
 			  m_render->m_textVideoMem->m_small
@@ -3992,6 +4008,7 @@ namespace bgfx
 
 	Init::Limits::Limits()
 		: maxEncoders(BGFX_CONFIG_DEFAULT_MAX_ENCODERS)
+		, maxViews(BGFX_CONFIG_MAX_VIEWS)
 		, numDrawCalls(BGFX_CONFIG_MAX_DRAW_CALLS)
 		, numDrawCallPeakFrames(0)
 		, minResourceCbSize(BGFX_CONFIG_MIN_RESOURCE_COMMAND_BUFFER_SIZE)
@@ -4036,6 +4053,15 @@ namespace bgfx
 		Init init = _userInit;
 
 		init.limits.maxEncoders       = bx::clamp<uint16_t>(init.limits.maxEncoders, 1, (0 != BGFX_CONFIG_MULTITHREADED) ? 128 : 1);
+		// 0 asks for the build's ceiling. The view field of the draw sort
+		// key is sized from BGFX_CONFIG_MAX_VIEWS at compile time, so that
+		// stays the hard maximum; this only decides how much of the view
+		// table the context actually uses and walks.
+		init.limits.maxViews          = 0 == init.limits.maxViews
+			? BGFX_CONFIG_MAX_VIEWS
+			: bx::clamp<uint32_t>(init.limits.maxViews, 1, BGFX_CONFIG_MAX_VIEWS)
+			;
+		g_maxViews                    = init.limits.maxViews;
 		init.limits.numDrawCalls      = alignDrawCalls(bx::max(init.limits.numDrawCalls, kDrawCallBlock) );
 		init.limits.minResourceCbSize = bx::min<uint32_t>(init.limits.minResourceCbSize, BGFX_CONFIG_MIN_RESOURCE_COMMAND_BUFFER_SIZE);
 
@@ -4079,7 +4105,7 @@ namespace bgfx
 		g_caps.limits.maxBlits                = BGFX_CONFIG_MAX_BLIT_ITEMS;
 		g_caps.limits.maxTextureSize          = 0;
 		g_caps.limits.maxTextureLayers        = 1;
-		g_caps.limits.maxViews                = BGFX_CONFIG_MAX_VIEWS;
+		g_caps.limits.maxViews                = g_maxViews;
 		g_caps.limits.maxFrameBuffers         = BGFX_CONFIG_MAX_FRAME_BUFFERS;
 		g_caps.limits.maxPrograms             = BGFX_CONFIG_MAX_PROGRAMS;
 		g_caps.limits.maxShaders              = BGFX_CONFIG_MAX_SHADERS;
@@ -6019,7 +6045,7 @@ namespace bgfx
 	{
 		// workaround GCC 4.9 type-limit check.
 		const uint32_t id = _id;
-		return id < BGFX_CONFIG_MAX_VIEWS;
+		return id < g_maxViews;
 	}
 
 	void setViewName(ViewId _id, const char* _name, int32_t _len)

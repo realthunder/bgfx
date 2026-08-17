@@ -3278,7 +3278,7 @@ namespace bgfx { namespace gl
 				}
 
 				// Init reserved part of view name.
-				for (uint32_t ii = 0; ii < BGFX_CONFIG_MAX_VIEWS; ++ii)
+				for (uint32_t ii = 0; ii < g_maxViews; ++ii)
 				{
 					bx::snprintf(s_viewName[ii], BGFX_CONFIG_MAX_VIEW_NAME_RESERVED+1, "%3d   ", ii);
 				}

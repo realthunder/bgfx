@@ -680,6 +680,14 @@ namespace bgfx
 			Limits();
 
 			uint16_t maxEncoders;           //!< Maximum number of encoder threads.
+			uint32_t maxViews;              //!< Highest number of view ids the context will hand out;
+			                                ///  clamped to `BGFX_CONFIG_MAX_VIEWS`, which stays the
+			                                ///  build's ceiling because the draw sort key's view field
+			                                ///  is sized from it at compile time. 0 selects the ceiling.
+			                                ///  Reported back as `caps.limits.maxViews`. Lowering it
+			                                ///  shortens the per-frame walk over the view table and the
+			                                ///  per-view pools the backends size from the ceiling, so a
+			                                ///  large ceiling costs only the view table's memory.
 			uint32_t numDrawCalls;          //!< Initial number of draw calls per frame. Rounded up to a
 			                                ///  multiple of 1024 (the minimum); 0 selects the default of 1024.
 			                                ///  The render-item buffers grow on demand up to
