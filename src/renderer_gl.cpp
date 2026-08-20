@@ -2960,10 +2960,19 @@ namespace bgfx { namespace gl
 					: 0
 					;
 
+				// WebGL2 IS GLES3, and 2D array textures are core there
+				// (texStorage3D/texSubImage3D, sampler2DArray) -- the
+				// Emscripten exclusion here dates from the WebGL1 era.
+				// Withholding the cap is not a graceful degrade: a
+				// sampler2DArray the app then never binds keeps GL's
+				// default unit 0, collides with the sampler2D already
+				// there, and WebGL2 rejects EVERY draw of that program
+				// with "two textures of different types use the same
+				// sampler location".
 				g_caps.supported |= false
 					|| s_extension[Extension::EXT_texture_array].m_supported
 					|| s_extension[Extension::EXT_gpu_shader4].m_supported
-					|| (m_gles3 && !BX_ENABLED(BX_PLATFORM_EMSCRIPTEN) )
+					|| m_gles3
 					? BGFX_CAPS_TEXTURE_2D_ARRAY
 					: 0
 					;
