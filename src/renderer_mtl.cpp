@@ -1193,12 +1193,24 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 
 			m_screenshotBlitProgram.create(&m_screenshotBlitProgramVsh, &m_screenshotBlitProgramFsh);
 
-			reset(m_renderPipelineDescriptor);
-			m_renderPipelineDescriptor->colorAttachments()->object(0)->setPixelFormat(getSwapChainPixelFormat(m_mainFrameBuffer.m_swapChain) );
+			// Headless -- no native window handle, so no swap chain -- there is
+			// no back buffer to blit a screenshot onto, and Metal asserts on a
+			// pipeline whose colour attachment carries no pixel format:
+			//   Render Pipeline Descriptor Validation
+			//   No valid pixelFormats set.
+			// Leave the state NULL. Its only user is the screenshot path,
+			// which needs that same back buffer to have anything to do.
+			const MTL::PixelFormat screenshotFormat = getSwapChainPixelFormat(m_mainFrameBuffer.m_swapChain);
 
-			m_renderPipelineDescriptor->setVertexFunction(m_screenshotBlitProgram.m_vsh->m_function);
-			m_renderPipelineDescriptor->setFragmentFunction(m_screenshotBlitProgram.m_fsh->m_function);
-			m_screenshotBlitRenderPipelineState = newRenderPipelineStateWithDescriptor(m_device, m_renderPipelineDescriptor);
+			if (MTL::PixelFormatInvalid != screenshotFormat)
+			{
+				reset(m_renderPipelineDescriptor);
+				m_renderPipelineDescriptor->colorAttachments()->object(0)->setPixelFormat(screenshotFormat);
+
+				m_renderPipelineDescriptor->setVertexFunction(m_screenshotBlitProgram.m_vsh->m_function);
+				m_renderPipelineDescriptor->setFragmentFunction(m_screenshotBlitProgram.m_fsh->m_function);
+				m_screenshotBlitRenderPipelineState = newRenderPipelineStateWithDescriptor(m_device, m_renderPipelineDescriptor);
+			}
 
 			m_occlusionQuery.preReset();
 			m_gpuTimer.init();
@@ -1901,12 +1913,17 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 				if (prevPixelFormat != pixelFormat)
 				{
 					MTL_RELEASE_I(m_screenshotBlitRenderPipelineState);
-					reset(m_renderPipelineDescriptor);
 
-					m_renderPipelineDescriptor->colorAttachments()->object(0)->setPixelFormat(pixelFormat);
-					m_renderPipelineDescriptor->setVertexFunction(m_screenshotBlitProgram.m_vsh->m_function);
-					m_renderPipelineDescriptor->setFragmentFunction(m_screenshotBlitProgram.m_fsh->m_function);
-					m_screenshotBlitRenderPipelineState = newRenderPipelineStateWithDescriptor(m_device, m_renderPipelineDescriptor);
+					// As at init: no swap chain, no pipeline.
+					if (MTL::PixelFormatInvalid != pixelFormat)
+					{
+						reset(m_renderPipelineDescriptor);
+
+						m_renderPipelineDescriptor->colorAttachments()->object(0)->setPixelFormat(pixelFormat);
+						m_renderPipelineDescriptor->setVertexFunction(m_screenshotBlitProgram.m_vsh->m_function);
+						m_renderPipelineDescriptor->setFragmentFunction(m_screenshotBlitProgram.m_fsh->m_function);
+						m_screenshotBlitRenderPipelineState = newRenderPipelineStateWithDescriptor(m_device, m_renderPipelineDescriptor);
+					}
 				}
 			}
 		}
@@ -6315,7 +6332,10 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 			}
 		}
 
-		if (m_screenshotTarget)
+		// The pipeline is NULL when there was no back buffer to build it
+		// against (see init), and a screenshot then has nowhere to go.
+		if (m_screenshotTarget
+		&&  NULL != m_screenshotBlitRenderPipelineState)
 		{
 			MTL::RenderPassDescriptor* renderPassDescriptor = newRenderPassDescriptor();
 			renderPassDescriptor->colorAttachments()->object(0)->setTexture(NULL != m_mainFrameBuffer.m_swapChain ? m_mainFrameBuffer.m_swapChain->currentDrawableTexture() : NULL);
