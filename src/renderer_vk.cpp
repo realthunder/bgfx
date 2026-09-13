@@ -8867,6 +8867,21 @@ VK_DESTROY
 
 	bool FrameBufferVK::isRenderable() const
 	{
+		// Headless -- no native window handle, so no swap chain -- the back
+		// buffer is a FrameBufferVK with no window, no attachments and no
+		// VkFramebuffer. "No window" alone used to mean renderable, which is
+		// right for an owned frame buffer and wrong for that one: a draw into
+		// a view left on the back buffer began a render pass on a null
+		// framebuffer with a 0x0 render area, and the driver crashed in
+		// vkCmdBeginRenderPass. There is nothing to draw into, so say so and
+		// let submit() skip the view like any other unrenderable target.
+		if (NULL == m_nwh
+		&&  0 == m_num
+		&&  !isValid(m_depth) )
+		{
+			return false;
+		}
+
 		return false
 			|| (NULL == m_nwh)
 			|| m_swapChain.m_needPresent
