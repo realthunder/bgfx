@@ -5600,33 +5600,43 @@ namespace bgfx { namespace d3d11
 				return false;
 			}
 
-			uint64_t timeEnd;
+			struct D3D11_QUERY_DATA_TIMESTAMP_DISJOINT
+			{
+				UINT64 Frequency;
+				BOOL Disjoint;
+			};
+
+			// The disjoint query is the one to ask. end() ends it after m_end, so
+			// m_end can have its result while this one has none yet, and GetData
+			// then writes nothing: the frequency published was whatever the stack
+			// held, and a GPU frame read as days. Once this one is in, the two
+			// timestamps ended before it are in as well.
+			D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint;
 			ID3D11DeviceContext* deviceCtx = s_renderD3D11->m_deviceCtx;
-			HRESULT hr = deviceCtx->GetData(query.m_end, &timeEnd, sizeof(timeEnd), D3D11_ASYNC_GETDATA_DONOTFLUSH);
+			HRESULT hr = deviceCtx->GetData(query.m_disjoint, &disjoint, sizeof(disjoint), D3D11_ASYNC_GETDATA_DONOTFLUSH);
 			if (S_OK == hr
 			||  isLost(hr) )
 			{
 				m_control.consume(1);
 
-				struct D3D11_QUERY_DATA_TIMESTAMP_DISJOINT
-				{
-					UINT64 Frequency;
-					BOOL Disjoint;
-				};
-
-				D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint;
-				DX_CHECK(deviceCtx->GetData(query.m_disjoint, &disjoint, sizeof(disjoint), 0) );
-
-				uint64_t timeBegin;
-				DX_CHECK(deviceCtx->GetData(query.m_begin, &timeBegin, sizeof(timeBegin), 0) );
+				uint64_t timeEnd   = 0;
+				uint64_t timeBegin = 0;
+				const bool valid = S_OK == hr
+					&& S_OK == deviceCtx->GetData(query.m_end,   &timeEnd,   sizeof(timeEnd),   0)
+					&& S_OK == deviceCtx->GetData(query.m_begin, &timeBegin, sizeof(timeBegin), 0)
+					;
 
 				Result& result = m_result[query.m_resultIdx];
 				--result.m_pending;
-				result.m_frameNum = query.m_frameNum;
 
-				result.m_frequency = disjoint.Frequency;
-				result.m_begin     = timeBegin;
-				result.m_end       = timeEnd;
+				// A query with nothing to say leaves the last result standing.
+				if (valid)
+				{
+					result.m_frameNum  = query.m_frameNum;
+					result.m_frequency = disjoint.Frequency;
+					result.m_begin     = timeBegin;
+					result.m_end       = timeEnd;
+				}
 
 				return true;
 			}
