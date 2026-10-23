@@ -1937,6 +1937,11 @@ namespace bgfx { namespace d3d11
 		void readTexture(TextureHandle _handle, void* _data, uint16_t _layer, uint8_t _mip) override
 		{
 			const TextureD3D11& texture = m_textures[_handle.idx];
+			if (NULL == texture.m_ptr)
+			{
+				// Creation failed: leave the caller's buffer as it is.
+				return;
+			}
 			const uint32_t subresource = _mip + _layer*texture.m_numMips;
 			D3D11_MAPPED_SUBRESOURCE mapped;
 			DX_CHECK(m_deviceCtx->Map(texture.m_ptr, subresource, D3D11_MAP_READ, 0, &mapped) );
@@ -4786,14 +4791,27 @@ namespace bgfx { namespace d3d11
 			{
 			}
 
-			if (!writeOnly)
+			// DX_CHECK only asserts in debug builds: a creation that fails on
+			// resource exhaustion (E_OUTOFMEMORY, a removed device) leaves
+			// m_ptr NULL, and every later view, update or map of it would hand
+			// the runtime a NULL resource. Leave the texture empty instead;
+			// update(), resolve() and readTexture() skip it, and binding it
+			// binds a NULL view.
+			if (NULL == m_ptr)
 			{
-				DX_CHECK(s_renderD3D11->m_device->CreateShaderResourceView(m_ptr, &srvd, &m_srv) );
+				BX_TRACE("Failed to create texture %dx%dx%d (format %d).", ti.width, ti.height, ti.depth, m_textureFormat);
 			}
-
-			if (computeWrite)
+			else
 			{
-				DX_CHECK(s_renderD3D11->m_device->CreateUnorderedAccessView(m_ptr, NULL, &m_uav) );
+				if (!writeOnly)
+				{
+					DX_CHECK(s_renderD3D11->m_device->CreateShaderResourceView(m_ptr, &srvd, &m_srv) );
+				}
+
+				if (computeWrite)
+				{
+					DX_CHECK(s_renderD3D11->m_device->CreateUnorderedAccessView(m_ptr, NULL, &m_uav) );
+				}
 			}
 
 			if (isVideoDecodeDst)
@@ -4910,6 +4928,12 @@ namespace bgfx { namespace d3d11
 			}
 
 			BX_UNUSED(_side, _mip, _rect, _z, _depth, _pitch);
+			return;
+		}
+
+		if (NULL == m_ptr)
+		{
+			// Creation failed (see create()); there is nothing to update.
 			return;
 		}
 
@@ -5063,6 +5087,11 @@ namespace bgfx { namespace d3d11
 
 	void TextureD3D11::resolve(uint8_t _resolve, uint32_t _layer, uint32_t _numLayers, uint32_t _mip) const
 	{
+		if (NULL == m_ptr)
+		{
+			return;
+		}
+
 		ID3D11DeviceContext* deviceCtx = s_renderD3D11->m_deviceCtx;
 
 		const bool needResolve = NULL != m_rt;
