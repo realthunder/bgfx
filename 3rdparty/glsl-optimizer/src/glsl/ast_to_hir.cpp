@@ -117,7 +117,9 @@ _mesa_ast_to_hir(exec_list *instructions, struct _mesa_glsl_parse_state *state)
     */
 	ir_instruction* before_node = (ir_instruction*)instructions->head;
 	ir_instruction* after_node = NULL;
-	while (before_node && (before_node->ir_type == ir_type_precision || before_node->ir_type == ir_type_typedecl))
+	/* An exec_list ends at its tail sentinel, never at NULL: reading the
+	 * sentinel's ir_type read past the list's owner (AddressSanitizer). */
+	while (!before_node->is_tail_sentinel() && (before_node->ir_type == ir_type_precision || before_node->ir_type == ir_type_typedecl))
 	{
 		after_node = before_node;
 	    before_node = (ir_instruction*)before_node->next;
@@ -3922,7 +3924,12 @@ ast_declarator_list::hir(exec_list *instructions,
           * or type declarations.
           */
          ir_instruction* before_node = (ir_instruction*)instructions->head;
-         while (before_node && (before_node->ir_type == ir_type_precision || before_node->ir_type == ir_type_typedecl))
+         /* To the tail sentinel at the most, not past it: the head of an
+          * empty list is that sentinel, inside the ir_if or the function
+          * that owns the list, and its ir_type was read beyond the owner
+          * (AddressSanitizer, heap-buffer-overflow, compiling FreeCAD's
+          * shaders). Inserted before the sentinel, var is appended. */
+         while (!before_node->is_tail_sentinel() && (before_node->ir_type == ir_type_precision || before_node->ir_type == ir_type_typedecl))
             before_node = (ir_instruction*)before_node->next;
          if (before_node)
             before_node->insert_before(var);
@@ -5414,7 +5421,7 @@ ast_struct_specifier::hir(exec_list *instructions,
           * statements or other declarations
           */
          ir_instruction* before_node = (ir_instruction*)instructions->head;
-         while (before_node &&
+         while (!before_node->is_tail_sentinel() &&
             (before_node->ir_type == ir_type_precision ||
             before_node->ir_type == ir_type_typedecl))
             before_node = (ir_instruction*)before_node->next;
