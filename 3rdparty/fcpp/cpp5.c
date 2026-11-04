@@ -307,7 +307,10 @@ ReturnCode fpp_eval(struct Global *global, int *eval)
 	}
 	opp->op = op;
 	opp->prec = prec;
-	skip = (valp[-1] != 0);         /* Short-circuit tester */
+	/* The value below the operator, when there is one: an operator before
+	 * any value -- a unary one or a parenthesis opening the expression --
+	 * read value[-1], off the stack (AddressSanitizer). */
+	skip = (valp > value) && (valp[-1] != 0); /* Short-circuit tester */
 	/*
 	 * Do the short-circuit stuff here.  Short-circuiting
 	 * stops automagically when operators are evaluated.
